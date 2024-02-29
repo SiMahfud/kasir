@@ -16,6 +16,12 @@ class ProdukModel extends Model
         return $this->findAll();
     }
 
+    //Metode untuk mengambil produk berdasarkan pagination
+    public function getProduk($limit, $start)
+    {
+        return $this->findAll($limit, $start);
+    }
+
     // Metode untuk mengambil produk berdasarkan ID
     public function getProdukById($id)
     {
