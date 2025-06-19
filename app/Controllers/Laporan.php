@@ -1,37 +1,134 @@
 <?php namespace App\Controllers;
 
-use App\Models\LaporanModel;
-use CodeIgniter\Controller;
+use App\Models\OrderModel;
+use App\Models\ProdukModel;
+use App\Models\KategoriModel;
+use App\Controllers\BaseController; // Ensure this is the correct path to your BaseController
 
-class Laporan extends Controller
+class Laporan extends BaseController // Class name matches Laporan.php
 {
-    protected $laporanModel;
+    protected $orderModel;
+    protected $produkModel;
+    protected $kategoriModel;
+    protected $helpers = ['form', 'url', 'number', 'session']; // Added session helper
 
     public function __construct()
     {
-        // Load model LaporanModel
-        $this->laporanModel = new LaporanModel();
+        $this->orderModel = new OrderModel();
+        $this->produkModel = new ProdukModel();
+        $this->kategoriModel = new KategoriModel();
+    }
+
+    private function checkAuth()
+    {
+        if (!session()->get('isLoggedIn')) {
+            session()->setFlashdata('error', 'Please login to access reports.');
+            return redirect()->to('/login');
+        }
+        $role = session()->get('user_role');
+        if ($role !== 'admin' && $role !== 'staff') {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
+            return redirect()->to('/dashboard');
+        }
+        return null; // No redirect, auth passed
     }
 
     public function penjualan()
     {
-        // Ambil parameter tanggal dari request
-        $tanggal_awal = $this->request->getVar('tanggal_awal');
-        $tanggal_akhir = $this->request->getVar('tanggal_akhir');
+        if ($redirect = $this->checkAuth()) return $redirect;
 
-        // Ambil data laporan penjualan dari model
-        $data['laporan_penjualan'] = $this->laporanModel->getLaporanPenjualan($tanggal_awal, $tanggal_akhir);
+        $filters = [
+            'tanggal_awal'  => $this->request->getGet('tanggal_awal'),
+            'tanggal_akhir' => $this->request->getGet('tanggal_akhir')
+        ];
 
-        // Tampilkan view dengan data laporan penjualan
+        $query = $this->orderModel
+            ->select('orders.*, customers.name as customer_name, users.name as user_name')
+            ->join('customers', 'customers.id = orders.customer_id', 'left')
+            ->join('users', 'users.id = orders.user_id', 'left');
+
+        if (!empty($filters['tanggal_awal'])) {
+            // Ensure date is in YYYY-MM-DD format for comparison
+            $query->where('orders.order_date >=', date('Y-m-d', strtotime($filters['tanggal_awal'])) . ' 00:00:00');
+        }
+        if (!empty($filters['tanggal_akhir'])) {
+            $query->where('orders.order_date <=', date('Y-m-d', strtotime($filters['tanggal_akhir'])) . ' 23:59:59');
+        }
+
+        // Clone the query builder instance for summary calculation *before* adding ordering and pagination for sales data
+        $summaryQueryBuilder = clone $query->builder(); // Get the DB builder instance from the model's query
+
+        // For sales data with pagination
+        $data['sales_data'] = $query->orderBy('orders.order_date', 'DESC')->paginate(15); // Default perPage or specify
+        $data['pager'] = $this->orderModel->pager;
+
+        // Calculate Summary using the cloned builder without pagination/ordering affecting summary results
+        // The select method on the model's builder returns a new builder instance,
+        // so we need to be careful. Or use a new builder instance based on the model's table.
+        // For simplicity, let's re-evaluate how summary is built on filtered data.
+        // One way: Get IDs from paginated result and re-query, or adjust the summary query.
+
+        // Simpler summary: use the non-paginated, non-ordered $summaryQueryBuilder
+        // If using model's query builder which might have internal state, it's tricky.
+        // Let's use a fresh query for summary but with same where clauses.
+
+        $summaryQuery = $this->orderModel
+            ->select('COUNT(orders.id) as total_orders, SUM(orders.total_amount) as total_revenue');
+            // No need to join for this summary if only using orders table fields for count/sum
+
+        if (!empty($filters['tanggal_awal'])) {
+            $summaryQuery->where('orders.order_date >=', date('Y-m-d', strtotime($filters['tanggal_awal'])) . ' 00:00:00');
+        }
+        if (!empty($filters['tanggal_akhir'])) {
+            $summaryQuery->where('orders.order_date <=', date('Y-m-d', strtotime($filters['tanggal_akhir'])) . ' 23:59:59');
+        }
+        // Add other filters if they affect which orders are included in summary (e.g. status = 'completed')
+        // $summaryQuery->where('orders.status', 'completed'); // Example: only completed orders for revenue
+
+        $summary_results = $summaryQuery->first();
+
+        $data['summary']['total_orders'] = $summary_results['total_orders'] ?? 0;
+        $data['summary']['total_revenue'] = $summary_results['total_revenue'] ?? 0;
+        $data['summary']['average_order_value'] = ($data['summary']['total_orders'] > 0)
+            ? $data['summary']['total_revenue'] / $data['summary']['total_orders']
+            : 0;
+
+        $data['filters'] = $filters;
         return view('laporan/penjualan', $data);
     }
 
     public function stok()
     {
-        // Ambil data laporan stok dari model
-        $data['laporan_stok'] = $this->laporanModel->getLaporanStok();
+        if ($redirect = $this->checkAuth()) return $redirect;
 
-        // Tampilkan view dengan data laporan stok
+        $filters = [
+            'category_id' => $this->request->getGet('category_id'),
+            'stock_level' => $this->request->getGet('stock_level')
+        ];
+
+        $data['categories'] = $this->kategoriModel->orderBy('name', 'ASC')->findAll();
+
+        $query = $this->produkModel
+            ->select('products.*, categories.name as category_name') // products.name, categories.name
+            ->join('categories', 'categories.id = products.category_id', 'left'); // Use correct table names
+
+        if (!empty($filters['category_id'])) {
+            $query->where('products.category_id', $filters['category_id']);
+        }
+
+        if (!empty($filters['stock_level'])) {
+            $low_stock_threshold = 10; // Can be a config value
+            if ($filters['stock_level'] === 'low') {
+                $query->where('products.stock >', 0)->where('products.stock <=', $low_stock_threshold);
+            } elseif ($filters['stock_level'] === 'out') {
+                $query->where('products.stock <=', 0);
+            }
+        }
+
+        $data['stock_data'] = $query->orderBy('products.name', 'ASC')->paginate(15); // Default perPage or specify
+        $data['pager'] = $this->produkModel->pager;
+        $data['filters'] = $filters;
+
         return view('laporan/stok', $data);
     }
 }
