@@ -1,15 +1,17 @@
-<?php namespace App\Models;
+<?php
+
+namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ProdukModel extends Model
+class OrderItemModel extends Model
 {
-    protected $table            = 'products';
+    protected $table            = 'order_items';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
-    protected $allowedFields    = ['category_id', 'name', 'description', 'price', 'stock', 'sku', 'image_path'];
+    protected $allowedFields    = ['order_id', 'product_id', 'quantity', 'price_per_unit', 'total_price'];
 
     // Dates
     protected $useTimestamps = true;
@@ -22,7 +24,6 @@ class ProdukModel extends Model
     // protected $validationRules      = [];
     // protected $validationMessages   = [];
     // protected $skipValidation       = false;
-    // protected $cleanValidationRules = true;
 
     // Callbacks
     // protected $allowCallbacks = true;

@@ -1,28 +1,31 @@
-<?php namespace App\Models;
+<?php
+
+namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ProdukModel extends Model
+class OrderModel extends Model
 {
-    protected $table            = 'products';
+    protected $table            = 'orders';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
-    protected $allowedFields    = ['category_id', 'name', 'description', 'price', 'stock', 'sku', 'image_path'];
+    protected $allowedFields    = ['customer_id', 'user_id', 'order_date', 'total_amount', 'status', 'notes'];
 
     // Dates
-    protected $useTimestamps = true;
+    protected $useTimestamps = true; // For created_at and updated_at
     protected $dateFormat    = 'datetime';
     protected $createdField  = 'created_at';
     protected $updatedField  = 'updated_at';
     // protected $deletedField  = 'deleted_at';
 
+    // order_date is a separate field in allowedFields and not handled by timestamps.
+
     // Validation
     // protected $validationRules      = [];
     // protected $validationMessages   = [];
     // protected $skipValidation       = false;
-    // protected $cleanValidationRules = true;
 
     // Callbacks
     // protected $allowCallbacks = true;

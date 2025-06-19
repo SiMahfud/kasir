@@ -4,35 +4,22 @@ use CodeIgniter\Model;
 
 class PenggunaModel extends Model
 {
-    protected $table = 'pengguna';
-    protected $primaryKey = 'id';
+    protected $table            = 'users';
+    protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
-    protected $allowedFields = ['nama', 'email', 'password', 'level'];
+    protected $returnType       = 'array';
+    protected $useSoftDeletes   = false; // Assuming no soft deletes for now
+    protected $allowedFields    = ['name', 'email', 'password', 'role'];
 
-    public function getPengguna()
-    {
-        return $this->findAll();
-    }
+    // Dates
+    protected $useTimestamps = true;
+    protected $dateFormat    = 'datetime'; // or 'int' if using UNIX timestamps
+    protected $createdField  = 'created_at';
+    protected $updatedField  = 'updated_at';
+    // protected $deletedField  = 'deleted_at'; // Uncomment if using soft deletes
 
-    public function getPenggunaById($id)
-    {
-        return $this->asArray()
-                    ->where(['id' => $id])
-                    ->first();
-    }
-
-    public function savePengguna($data)
-    {
-        return $this->save($data);
-    }
-
-    public function updatePengguna($id, $data)
-    {
-        return $this->update($id, $data);
-    }
-
-    public function deletePengguna($id)
-    {
-        return $this->delete($id);
-    }
+    // You can add validation rules here if needed
+    // protected $validationRules    = [];
+    // protected $validationMessages = [];
+    // protected $skipValidation     = false;
 }

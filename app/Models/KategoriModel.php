@@ -1,15 +1,17 @@
-<?php namespace App\Models;
+<?php
+
+namespace App\Models;
 
 use CodeIgniter\Model;
 
-class ProdukModel extends Model
+class KategoriModel extends Model
 {
-    protected $table            = 'products';
+    protected $table            = 'categories';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
-    protected $allowedFields    = ['category_id', 'name', 'description', 'price', 'stock', 'sku', 'image_path'];
+    protected $allowedFields    = ['name', 'description'];
 
     // Dates
     protected $useTimestamps = true;
@@ -22,7 +24,6 @@ class ProdukModel extends Model
     // protected $validationRules      = [];
     // protected $validationMessages   = [];
     // protected $skipValidation       = false;
-    // protected $cleanValidationRules = true;
 
     // Callbacks
     // protected $allowCallbacks = true;
