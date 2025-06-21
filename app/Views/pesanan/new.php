@@ -119,13 +119,22 @@ New Order - POS
 
                     <div class="border-t pt-4 space-y-2 text-sm text-gray-700">
                         <div class="flex justify-between"><span>Subtotal:</span> <span id="cart-subtotal" class="font-medium">Rp 0</span></div>
+
                         <div class="flex justify-between items-center">
                             <span>Discount:</span>
-                            <div class="flex items-center">
-                                <input type="number" id="cart-discount-input" value="0" class="w-20 text-right border rounded-md text-sm py-1 px-2 shadow-sm" min="0">
-                                <span id="cart-discount-value-display" class="font-medium ml-2 text-gray-700">Rp 0</span>
+                            <div class="flex items-center space-x-2">
+                                <select id="discount_type" name="pos_discount_type" class="text-sm border rounded-md px-2 py-1 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="fixed_amount" selected>Rp</option>
+                                    <option value="percentage">%</option>
+                                </select>
+                                <input type="number" id="discount_value_input" name="pos_discount_value_input" class="w-24 text-right border rounded-md text-sm py-1 px-2 shadow-sm" value="0" min="0">
                             </div>
                         </div>
+                        <div class="flex justify-between">
+                            <span>Calculated Discount:</span>
+                            <span id="cart_calculated_discount_display" class="font-medium text-red-600">- Rp 0</span>
+                        </div>
+
                         <div class="flex justify-between"><span>Tax (10%):</span> <span id="cart-tax" class="font-medium">Rp 0</span></div>
                         <hr class="my-2">
                         <div class="flex justify-between font-bold text-lg text-gray-800"><span>Total:</span> <span id="cart-total">Rp 0</span></div>
@@ -133,16 +142,17 @@ New Order - POS
 
                     <div class="mt-6">
                         <label for="order_notes" class="block text-sm font-medium text-gray-700 mb-1">Order Notes (Optional):</label>
-                        <textarea name="order_notes" id="order_notes" rows="2" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                        <textarea name="pos_final_notes" id="order_notes" rows="2" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
                     </div>
 
                     <!-- Hidden fields for form submission -->
                     <input type="hidden" name="pos_customer_id" id="pos_customer_id">
                     <input type="hidden" name="pos_items_json" id="pos_items_json">
-                    <input type="hidden" name="pos_total_amount" id="pos_total_amount">
-                    <input type="hidden" name="pos_discount_amount" id="pos_discount_amount">
+                    <input type="hidden" name="pos_subtotal_before_discount" id="pos_subtotal_before_discount"> <!-- New -->
+                    <input type="hidden" name="pos_calculated_discount_amount" id="pos_calculated_discount_amount"> <!-- Renamed/repurposed from pos_discount_amount -->
                     <input type="hidden" name="pos_tax_amount" id="pos_tax_amount">
-                    <input type="hidden" name="pos_final_notes" id="pos_final_notes">
+                    <input type="hidden" name="pos_total_amount" id="pos_total_amount"> <!-- Final total -->
+                    <!-- pos_discount_type and pos_discount_value_input are submitted directly from their visible fields -->
 
                     <button type="submit" id="submit-order-btn" class="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md text-lg transition duration-150 ease-in-out flex items-center justify-center disabled:opacity-50" disabled>
                         <i class="fas fa-check-circle mr-2"></i>Finalize & Submit Order

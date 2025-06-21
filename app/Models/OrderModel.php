@@ -11,7 +11,19 @@ class OrderModel extends Model
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
-    protected $allowedFields    = ['customer_id', 'user_id', 'order_date', 'total_amount', 'status', 'notes'];
+    protected $allowedFields    = [
+        'customer_id',
+        'user_id',
+        'order_date',
+        'subtotal_before_discount', // New
+        'discount_type',            // New
+        'discount_value',           // New
+        'calculated_discount_amount',// New
+        'tax_amount',               // New
+        'total_amount',
+        'status',
+        'notes'
+    ];
 
     // Dates
     protected $useTimestamps = true; // For created_at and updated_at

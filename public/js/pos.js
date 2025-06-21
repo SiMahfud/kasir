@@ -7,12 +7,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const productListArea = document.getElementById('product-list-area');
     const cartItemsList = document.getElementById('cart-items-list');
     const emptyCartMessage = document.getElementById('empty-cart-message');
-    const loadingProductsMessage = document.getElementById('loading-products-message'); // Initial loading message
-    const noProductsMessage = document.getElementById('no-products-message'); // Message for no search results
+    const loadingProductsMessage = document.getElementById('loading-products-message');
+    const noProductsMessage = document.getElementById('no-products-message');
 
     const cartSubtotalEl = document.getElementById('cart-subtotal');
-    const cartDiscountInputEl = document.getElementById('cart-discount-input');
-    const cartDiscountValueDisplayEl = document.getElementById('cart-discount-value-display');
+    // New Discount elements
+    const discountTypeSelect = document.getElementById('discount_type');
+    const discountValueInput = document.getElementById('discount_value_input'); // Replaces cartDiscountInputEl
+    const cartCalculatedDiscountDisplayEl = document.getElementById('cart_calculated_discount_display'); // New display for calculated discount
+
     const cartTaxEl = document.getElementById('cart-tax');
     const cartTotalEl = document.getElementById('cart-total');
 
@@ -25,10 +28,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const posForm = document.getElementById('pos-form');
     const posCustomerIdInput = document.getElementById('pos_customer_id');
     const posItemsJsonInput = document.getElementById('pos_items_json');
-    const posTotalAmountInput = document.getElementById('pos_total_amount');
-    const posDiscountAmountInput = document.getElementById('pos_discount_amount');
+    const posSubtotalBeforeDiscountInput = document.getElementById('pos_subtotal_before_discount'); // New
+    const posCalculatedDiscountAmountInput = document.getElementById('pos_calculated_discount_amount'); // Replaces posDiscountAmountInput
     const posTaxAmountInput = document.getElementById('pos_tax_amount');
-    const posFinalNotesInput = document.getElementById('pos_final_notes');
+    const posTotalAmountInput = document.getElementById('pos_total_amount'); // Final total
+    // pos_discount_type and pos_discount_value_input are submitted directly from their visible form elements.
+    // pos_final_notes is submitted directly by the textarea name attribute.
 
     // --- Helper Functions ---
     function debounce(func, delay) {
@@ -54,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function searchProducts(keyword) {
         if (loadingProductsMessage) loadingProductsMessage.classList.remove('hidden');
         if (noProductsMessage) noProductsMessage.classList.add('hidden');
-        if (productListArea) productListArea.innerHTML = ''; // Clear previous results before loading
+        if (productListArea) productListArea.innerHTML = '<p class="text-gray-500 text-center py-10">Loading products...</p>';
 
         try {
             const response = await fetch(siteUrl + 'pesanan/ajax_product_search?term=' + encodeURIComponent(keyword));
@@ -67,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error fetching products:', error);
             if (productListArea) productListArea.innerHTML = '<p class="text-red-500 text-center">Error loading products.</p>';
         } finally {
-            if (loadingProductsMessage) loadingProductsMessage.classList.add('hidden');
+            // Removed hiding loading message from here, renderProductList will clear it.
         }
     }
 
@@ -76,10 +81,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (productSearchInput) {
         productSearchInput.addEventListener('input', function(e) {
             const keyword = e.target.value.trim();
-            if (keyword.length >= 1 || keyword.length === 0) { // Search on 1 char or if field is cleared
+            if (keyword.length >= 1 || keyword.length === 0) {
                 debouncedProductSearch(keyword);
             } else {
-                 if (productListArea) productListArea.innerHTML = '<p class="text-gray-500 text-center">Type 1 or more characters to search.</p>';
+                 if (productListArea) productListArea.innerHTML = '<p class="text-gray-500 text-center py-10">Type 1 or more characters to search.</p>';
                  if (noProductsMessage) noProductsMessage.classList.add('hidden');
             }
         });
@@ -87,14 +92,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function renderProductList(products) {
         if (!productListArea) return;
-        productListArea.innerHTML = ''; // Clear previous items or "loading" message
+        productListArea.innerHTML = '';
 
         if (!products || products.length === 0) {
             if (noProductsMessage) {
-                noProductsMessage.classList.remove('hidden');
+                noProductsMessage.classList.remove('hidden'); // Show the "no products found" message
                 productListArea.appendChild(noProductsMessage);
-            } else {
-                 productListArea.innerHTML = '<p class="text-gray-500 text-center">No products found.</p>';
+            } else { // Fallback if the specific message element isn't there
+                 productListArea.innerHTML = '<p class="text-gray-500 text-center py-10">No products found matching your search.</p>';
             }
             return;
         }
@@ -111,7 +116,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let imageHTML = '';
             if (product.image_path) {
-                // Use baseUrl for assets like images
                 imageHTML = `<img src="${baseUrl}uploads/products/${escapeHTML(product.image_path)}" alt="${escapeHTML(product.name)}" class="h-10 w-10 object-cover rounded mt-1 mr-3 flex-shrink-0">`;
             }
 
@@ -131,7 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // --- Cart Logic (mostly same as before) ---
     function addToCart(product) {
         if (product.stock <= 0) {
             alert(`'${escapeHTML(product.name)}' is out of stock.`);
@@ -173,7 +176,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function clearCart() {
         if (confirm('Are you sure you want to clear all items from the cart?')) {
             cart = [];
-            if(cartDiscountInputEl) cartDiscountInputEl.value = 0;
+            if(discountValueInput) discountValueInput.value = 0;
+            if(discountTypeSelect) discountTypeSelect.value = 'fixed_amount'; // Reset to default
             renderCart();
         }
     }
@@ -218,28 +222,48 @@ document.addEventListener('DOMContentLoaded', function() {
         let subtotal = 0;
         cart.forEach(item => subtotal += item.price * item.quantity);
 
-        let discountValue = parseFloat(cartDiscountInputEl ? cartDiscountInputEl.value : 0) || 0;
-        if (discountValue < 0) {
-            discountValue = 0;
-            if(cartDiscountInputEl) cartDiscountInputEl.value = 0;
-        }
-        if (discountValue > subtotal) {
-            discountValue = subtotal;
-            if(cartDiscountInputEl) cartDiscountInputEl.value = subtotal;
+        const discountType = discountTypeSelect ? discountTypeSelect.value : 'fixed_amount';
+        let discountInputValue = parseFloat(discountValueInput ? discountValueInput.value : 0) || 0;
+        let actualDiscountAmount = 0;
+
+        if (discountInputValue < 0) {
+            discountInputValue = 0;
+            if(discountValueInput) discountValueInput.value = 0;
         }
 
-        const amountAfterDiscount = subtotal - discountValue;
-        const taxAmount = amountAfterDiscount * TAX_RATE;
+        if (discountType === 'percentage') {
+            if (discountInputValue > 100) { // Percentage cannot exceed 100
+                discountInputValue = 100;
+                if(discountValueInput) discountValueInput.value = 100;
+            }
+            actualDiscountAmount = subtotal * (discountInputValue / 100);
+        } else { // fixed_amount
+            actualDiscountAmount = discountInputValue;
+        }
+
+        if (actualDiscountAmount > subtotal) { // Cap discount
+            actualDiscountAmount = subtotal;
+            // Optionally, if fixed_amount type, you might want to update discountValueInput to match actualDiscountAmount
+            // if (discountType === 'fixed_amount' && discountValueInput && discountInputValue > actualDiscountAmount) {
+            //    discountValueInput.value = actualDiscountAmount.toFixed(2);
+            // }
+        }
+
+        const amountAfterDiscount = subtotal - actualDiscountAmount;
+        const taxAmount = amountAfterDiscount * TAX_RATE; // Tax applied on discounted amount
         const grandTotal = amountAfterDiscount + taxAmount;
 
         if (cartSubtotalEl) cartSubtotalEl.textContent = formatCurrency(subtotal);
-        if (cartDiscountValueDisplayEl) cartDiscountValueDisplayEl.textContent = formatCurrency(discountValue);
+        if (cartCalculatedDiscountDisplayEl) cartCalculatedDiscountDisplayEl.textContent = `- ${formatCurrency(actualDiscountAmount)}`;
         if (cartTaxEl) cartTaxEl.textContent = formatCurrency(taxAmount);
         if (cartTotalEl) cartTotalEl.textContent = formatCurrency(grandTotal);
 
-        if(posDiscountAmountInput) posDiscountAmountInput.value = discountValue.toFixed(2);
+        // Update hidden fields for form submission
+        if(posSubtotalBeforeDiscountInput) posSubtotalBeforeDiscountInput.value = subtotal.toFixed(2);
+        if(posCalculatedDiscountAmountInput) posCalculatedDiscountAmountInput.value = actualDiscountAmount.toFixed(2);
         if(posTaxAmountInput) posTaxAmountInput.value = taxAmount.toFixed(2);
         if(posTotalAmountInput) posTotalAmountInput.value = grandTotal.toFixed(2);
+        // Note: discount_type and discount_value_input are submitted directly by their name attributes from visible form elements.
     }
 
     function updateButtonStates() {
@@ -268,24 +292,71 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
         if(posItemsJsonInput) posItemsJsonInput.value = JSON.stringify(itemsToSubmit);
 
-        if(posFinalNotesInput && orderNotesTextarea) posFinalNotesInput.value = orderNotesTextarea.value;
+        // pos_final_notes is submitted directly by textarea name attribute ('pos_final_notes')
+        // The other hidden fields (pos_subtotal_before_discount, pos_calculated_discount_amount, etc.) are populated in calculateTotals()
     }
 
-    // Initial product load (e.g. empty search to show some initial products)
-    // or based on pre-rendered items if any
-    const initialProductItems = productListArea ? productListArea.querySelectorAll('.product-item') : [];
-    if (loadingProductsMessage && initialProductItems.length === 0) {
-        // If no products are pre-rendered by PHP, show loading then fetch, or prompt to search
-        // For now, we assume any pre-rendered products are the initial state.
-        // If AJAX is the *only* way products appear, then an initial call to searchProducts('') might be good.
-        // searchProducts(''); // Example: Load all (or paginated initial set)
-        loadingProductsMessage.classList.add('hidden'); // Hide if relying on search
-        if (productListArea && productListArea.children.length === 1 && productListArea.firstChild.id === 'loading-products-message') {
+    // Event Listeners
+    if (productListArea) { // Add to cart
+        productListArea.addEventListener('click', function(e) {
+            const addButton = e.target.closest('.add-to-cart-btn');
+            if (addButton) {
+                const productItemEl = addButton.closest('.product-item');
+                if (productItemEl) {
+                    const product = {
+                        id: productItemEl.dataset.productId,
+                        name: productItemEl.dataset.name,
+                        price: parseFloat(productItemEl.dataset.price),
+                        stock: parseInt(productItemEl.dataset.stock)
+                    };
+                    addToCart(product);
+                }
+            }
+        });
+    }
+
+    if (cartItemsList) { // Remove item or Change quantity
+        cartItemsList.addEventListener('click', function(e) {
+            const removeButton = e.target.closest('.remove-from-cart-btn');
+            if (removeButton) {
+                const productId = removeButton.dataset.itemId;
+                removeFromCart(productId);
+            }
+        });
+        cartItemsList.addEventListener('change', function(e) {
+            if (e.target.classList.contains('quantity-input')) {
+                const productId = e.target.dataset.itemId;
+                const newQuantity = parseInt(e.target.value);
+                updateQuantity(productId, newQuantity);
+            }
+        });
+    }
+
+    if (clearCartBtn) clearCartBtn.addEventListener('click', clearCart);
+
+    // Updated Discount Input & Type Change Listeners
+    if (discountValueInput) {
+        discountValueInput.addEventListener('input', calculateTotals);
+    }
+    if (discountTypeSelect) {
+        discountTypeSelect.addEventListener('change', calculateTotals);
+    }
+
+    if (posForm) posForm.addEventListener('submit', prepareOrderSubmission);
+
+    // Initial product list message
+    if (productListArea && productListArea.children.length === 0) {
+        if (loadingProductsMessage && loadingProductsMessage.parentNode === productListArea) {
+            // if loading message is still there, means no initial search was run
+        } else {
              productListArea.innerHTML = '<p class="text-gray-500 text-center py-10">Search for products to begin.</p>';
         }
-    } else if (loadingProductsMessage) {
+    }
+    if(loadingProductsMessage && productListArea && productListArea.children.length > 0 && productListArea.firstChild.id !== 'loading-products-message'){
+        // If products were pre-rendered or loaded by another means, hide loading
         loadingProductsMessage.classList.add('hidden');
     }
 
-    renderCart(); // Initial call to set up cart display and button states
+
+    renderCart(); // Initial call
 });

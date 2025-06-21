@@ -53,6 +53,7 @@ $routes->get('pesanan/new', 'PesananController::new');                   // Disp
 $routes->get('pesanan/ajax_product_search', 'PesananController::ajaxProductSearch'); // AJAX Product Search for POS
 $routes->post('pesanan/submit_order', 'PesananController::submitOrder'); // Handle POS submission
 $routes->get('pesanan/view/(:num)', 'PesananController::view/$1');
+$routes->get('pesanan/receipt/(:num)', 'PesananController::receipt/$1'); // New Receipt Route
 $routes->get('pesanan/edit/(:num)', 'PesananController::edit/$1');       // Placeholder for editing an order (e.g., if status allows)
 // $routes->post('pesanan/update/(:num)', 'PesananController::update/$1'); // Placeholder for actual update logic if edit is implemented
 $routes->get('pesanan/cancel/(:num)', 'PesananController::cancelOrder/$1'); // Placeholder for cancelling an order
@@ -61,6 +62,7 @@ $routes->get('pesanan/cancel/(:num)', 'PesananController::cancelOrder/$1'); // P
 // Routes for Reports (Laporan)
 // Note: The controller class is 'Laporan', not 'LaporanController'
 $routes->get('laporan/penjualan', 'Laporan::penjualan');
+$routes->get('laporan/export_sales_csv', 'Laporan::exportSalesCSV'); // CSV Export Route
 $routes->get('laporan/stok', 'Laporan::stok');
 
 

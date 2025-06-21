@@ -17,12 +17,15 @@ Sales Report
         <h2 class="text-3xl font-semibold text-gray-800 mb-4 sm:mb-0 flex items-center">
             <i class="fas fa-chart-line mr-3 text-blue-500"></i>Sales Report
         </h2>
-        <!-- Optional: Export buttons (CSV, PDF) can go here -->
-        <div>
-            <!-- <button class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-3 rounded-lg shadow-md text-sm transition duration-150 ease-in-out mr-2">
-                <i class="fas fa-file-csv mr-1"></i>Export CSV
-            </button>
-            <button class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg shadow-md text-sm transition duration-150 ease-in-out">
+        <div class="flex space-x-2">
+             <?php if (hasPermission('reports_export_data')): ?>
+            <a href="#" id="exportSalesCsvBtn"
+               class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out text-sm flex items-center">
+                <i class="fas fa-file-csv mr-2"></i>Export to CSV
+            </a>
+            <?php endif; ?>
+            <!-- PDF button placeholder -->
+            <!-- <button class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg shadow-md text-sm transition duration-150 ease-in-out">
                 <i class="fas fa-file-pdf mr-1"></i>Export PDF
             </button> -->
         </div>
@@ -135,12 +138,40 @@ Sales Report
 <?= $this->section('scripts') ?>
     <!-- <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script> -->
     <script>
-        // document.addEventListener('DOMContentLoaded', function() {
-        //     flatpickr("input[type=date]", {
-        //         dateFormat: "Y-m-d",
-        //         altInput: true, // Human-friendly date
-        //         altFormat: "F j, Y",
-        //     });
-        // });
+        document.addEventListener('DOMContentLoaded', function() {
+            // Optional: Flatpickr initialization
+            // flatpickr("input[type=date]", {
+            //     dateFormat: "Y-m-d",
+            //     altInput: true,
+            //     altFormat: "F j, Y",
+            // });
+
+            const exportBtn = document.getElementById('exportSalesCsvBtn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const tanggalAwal = document.getElementById('tanggal_awal').value;
+                    const tanggalAkhir = document.getElementById('tanggal_akhir').value;
+
+                    let exportUrl = '<?= site_url('laporan/export_sales_csv') ?>';
+                    const params = new URLSearchParams();
+
+                    if (tanggalAwal) {
+                        params.append('tanggal_awal', tanggalAwal);
+                    }
+                    if (tanggalAkhir) {
+                        params.append('tanggal_akhir', tanggalAkhir);
+                    }
+                    // Add other filter parameters here if they are added to the form
+                    // e.g., const status = document.getElementById('status_filter').value;
+                    // if (status) params.append('status', status);
+
+                    if (params.toString()) {
+                        exportUrl += '?' + params.toString();
+                    }
+                    window.location.href = exportUrl;
+                });
+            }
+        });
     </script>
 <?= $this->endSection() ?>

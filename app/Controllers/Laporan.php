@@ -125,4 +125,71 @@ class Laporan extends BaseController // Class name matches Laporan.php
 
         return view('laporan/stok', $data);
     }
+
+    public function exportSalesCSV()
+    {
+        if (!hasPermission('reports_export_data')) {
+            // For file downloads, a redirect might not show the flash message effectively.
+            // Returning a simple error response is better.
+            return $this->response->setStatusCode(403)->setBody('Access Denied: You do not have permission to export this data.');
+        }
+
+        $tanggal_awal = $this->request->getGet('tanggal_awal');
+        $tanggal_akhir = $this->request->getGet('tanggal_akhir');
+        // Add other filters here if your sales report supports them (e.g., status, customer)
+
+        $query = $this->orderModel
+            ->select('orders.id as order_id, orders.order_date, customers.name as customer_name, users.name as user_name, orders.subtotal_before_discount, orders.calculated_discount_amount, orders.tax_amount, orders.total_amount, orders.status')
+            ->join('customers', 'customers.id = orders.customer_id', 'left')
+            ->join('users', 'users.id = orders.user_id', 'left');
+
+        $filename_parts = ["sales_report"];
+        if (!empty($tanggal_awal)) {
+            $query->where('orders.order_date >=', date('Y-m-d', strtotime($tanggal_awal)) . ' 00:00:00');
+            $filename_parts[] = "from_" . date('Ymd', strtotime($tanggal_awal));
+        }
+        if (!empty($tanggal_akhir)) {
+            $query->where('orders.order_date <=', date('Y-m-d', strtotime($tanggal_akhir)) . ' 23:59:59');
+            $filename_parts[] = "to_" . date('Ymd', strtotime($tanggal_akhir));
+        }
+        // Apply other filters to $query here
+
+        $sales_data = $query->orderBy('orders.order_date', 'DESC')->findAll();
+
+        $filename = implode("_", $filename_parts) . ".csv";
+
+        // Set HTTP headers for CSV download
+        header("Content-Description: File Transfer");
+        header("Content-Disposition: attachment; filename=\"{$filename}\""); // Note the escaped quotes for filename
+        header("Content-Type: application/csv; charset=UTF-8");
+
+        $file = fopen('php://output', 'w');
+
+        // Add BOM for UTF-8 to ensure Excel opens cyrillic/special characters correctly
+        fputs($file, "\xEF\xBB\xBF");
+
+        // CSV Headers
+        fputcsv($file, [
+            'Order ID', 'Date', 'Customer', 'Staff',
+            'Subtotal', 'Discount Applied', 'Tax Amount', 'Total Amount', 'Status'
+        ]);
+
+        // CSV Rows
+        foreach ($sales_data as $sale) {
+            fputcsv($file, [
+                $sale['order_id'],
+                date('Y-m-d H:i:s', strtotime($sale['order_date'])),
+                $sale['customer_name'] ?? 'N/A (Guest)',
+                $sale['user_name'] ?? 'N/A',
+                number_format($sale['subtotal_before_discount'] ?? 0, 2, '.', ''), // Use dot as decimal separator for CSV
+                number_format($sale['calculated_discount_amount'] ?? 0, 2, '.', ''),
+                number_format($sale['tax_amount'] ?? 0, 2, '.', ''),
+                number_format($sale['total_amount'] ?? 0, 2, '.', ''),
+                ucfirst($sale['status'] ?? 'N/A')
+            ]);
+        }
+
+        fclose($file);
+        exit(); // Crucial to prevent any further output from CodeIgniter
+    }
 }

@@ -44,4 +44,16 @@ class ProdukModel extends Model
     // protected $afterFind      = [];
     // protected $beforeDelete   = [];
     // protected $afterDelete    = [];
+
+    public function incrementStock($productId, $quantity)
+    {
+        if (!is_numeric($productId) || !is_numeric($quantity) || $quantity <= 0) {
+            return false;
+        }
+        // Ensure quantity is treated as integer for stock operations
+        $quantity = (int)$quantity;
+        return $this->set('stock', "stock + {$quantity}", false)
+                    ->where('id', $productId)
+                    ->update();
+    }
 }

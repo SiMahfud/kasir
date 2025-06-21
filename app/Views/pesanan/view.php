@@ -19,6 +19,17 @@ Order Details #<?= esc($order['id'] ?? 'N/A') ?>
            class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out flex items-center">
            <i class="fas fa-arrow-left mr-2"></i>Back to Order List
         </a>
+        <a href="<?= site_url('pesanan/receipt/' . ($order['id'] ?? '')) ?>" target="_blank"
+           class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out flex items-center no-print">
+           <i class="fas fa-print mr-2"></i>Print Receipt
+        </a>
+        <?php if (isset($order) && strtolower($order['status'] ?? '') === 'pending' && hasPermission('orders_cancel')): ?>
+            <a href="<?= site_url('pesanan/cancel/' . $order['id']) ?>"
+               class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out flex items-center no-print"
+               onclick="return confirm('Are you sure you want to cancel this order? Stock will be restored.');">
+                <i class="fas fa-times-circle mr-2"></i>Cancel Order
+            </a>
+        <?php endif; ?>
     </div>
 
     <?php if (session()->getFlashdata('message')): ?>

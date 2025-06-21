@@ -95,12 +95,20 @@ class PesananController extends BaseController
         $customerId = !empty($rawCustomerId) ? (int)$rawCustomerId : null;
 
         $itemsJson = $this->request->getPost('pos_items_json');
-        $clientTotalAmount = $this->request->getPost('pos_total_amount'); // For reference, will be recalculated
-        $clientDiscountAmount = $this->request->getPost('pos_discount_amount') ?? 0;
-        $clientTaxAmount = $this->request->getPost('pos_tax_amount') ?? 0; // Assuming tax is a value, not a rate here
-        $finalNotes = $this->request->getPost('pos_final_notes');
+        // Client-side totals are for reference/cross-check only if desired, server calculates authoritatively.
+        // $clientTotalAmount = $this->request->getPost('pos_total_amount');
 
-        $staffUserId = session()->get('user_id') ?? null; // Assumes logged-in staff ID is in session
+        // New discount fields from form
+        $discountType = $this->request->getPost('pos_discount_type'); // 'percentage' or 'fixed_amount'
+        $discountValueInput = $this->request->getPost('pos_discount_value_input'); // The value user typed for discount
+
+        // Calculated amounts from client (for reference or detailed logging if needed, but will be recalculated)
+        // $clientCalculatedDiscount = $this->request->getPost('pos_calculated_discount_amount');
+        // $clientTaxAmount = $this->request->getPost('pos_tax_amount');
+        // $clientSubtotalBeforeDiscount = $this->request->getPost('pos_subtotal_before_discount');
+
+        $finalNotes = $this->request->getPost('pos_final_notes');
+        $staffUserId = session()->get('user_id') ?? null;
 
         // --- Validation (Server-Side) ---
         $items = json_decode($itemsJson, true);
@@ -147,31 +155,35 @@ class PesananController extends BaseController
             ];
         }
 
-        // Apply discount and tax (example: tax is 10% of subtotal after discount)
-        $discountAmount = (float)$clientDiscountAmount;
-        if ($discountAmount < 0) $discountAmount = 0;
-        if ($discountAmount > $calculatedSubtotal) $discountAmount = $calculatedSubtotal;
+        // Server-side recalculation of discount
+        $serverCalculatedDiscountAmount = 0;
+        $discountInputValueNumeric = (float)($discountValueInput ?? 0);
 
-        $amountAfterDiscount = $calculatedSubtotal - $discountAmount;
-
-        // Assuming clientTaxAmount is a pre-calculated value. If it's a rate, apply it here.
-        // For simplicity, let's assume clientTaxAmount is the value to be added.
-        // Or, recalculate tax based on a fixed rate if that's the business rule.
-        // Example: $taxRate = 0.10; $taxAmount = $amountAfterDiscount * $taxRate;
-        $taxAmount = (float)$clientTaxAmount; // Trusting client-calculated tax for now, or recalculate
-        if ($taxAmount < 0) $taxAmount = 0;
-
-        $finalTotalAmount = $amountAfterDiscount + $taxAmount;
-
-        // Validate final total amount (optional, but good sanity check)
-        if (!is_numeric($finalTotalAmount) || $finalTotalAmount < 0) { // Can be 0 if fully discounted
-             return redirect()->to('/pesanan/new')->with('error', 'Calculated total amount is invalid.')->withInput();
+        if ($discountInputValueNumeric > 0) {
+            if ($discountType === 'percentage') {
+                if ($discountInputValueNumeric > 100) $discountInputValueNumeric = 100; // Cap percentage
+                if ($discountInputValueNumeric < 0) $discountInputValueNumeric = 0;
+                $serverCalculatedDiscountAmount = $calculatedSubtotal * ($discountInputValueNumeric / 100);
+            } else { // fixed_amount
+                $serverCalculatedDiscountAmount = $discountInputValueNumeric;
+            }
+            // Ensure discount doesn't exceed subtotal
+            if ($serverCalculatedDiscountAmount > $calculatedSubtotal) {
+                $serverCalculatedDiscountAmount = $calculatedSubtotal;
+            }
+             if ($serverCalculatedDiscountAmount < 0) $serverCalculatedDiscountAmount = 0;
         }
-        // Compare with clientTotalAmount if desired, though server calculation is king
-        // if (abs($finalTotalAmount - (float)$clientTotalAmount) > 0.01) { // Allow for small float differences
-        //     log_message('warning', "Client total {$clientTotalAmount} differs from server calculated total {$finalTotalAmount} for a potential order.");
-        // }
 
+
+        $amountAfterDiscount = $calculatedSubtotal - $serverCalculatedDiscountAmount;
+
+        // Server-side tax calculation (e.g., 10% of amount after discount)
+        $taxRate = 0.10; // Define globally or from config
+        $serverCalculatedTaxAmount = $amountAfterDiscount * $taxRate;
+
+        $finalTotalAmount = $amountAfterDiscount + $serverCalculatedTaxAmount;
+
+        if ($finalTotalAmount < 0) $finalTotalAmount = 0; // Total cannot be negative
 
         // --- Database Transaction ---
         $db = \Config\Database::connect();
@@ -180,23 +192,20 @@ class PesananController extends BaseController
         try {
             // Create Main Order Record
             $orderData = [
-                'customer_id'  => $customerId,
-                'user_id'      => $staffUserId,
-                'order_date'   => date('Y-m-d H:i:s'), // Current timestamp
-                'total_amount' => $finalTotalAmount,
-                'status'       => 'completed', // Default status, adjust if payment pending etc.
-                'notes'        => $finalNotes,
-                // Storing calculated subtotal, discount, tax for reference
-                // 'subtotal_amount' => $calculatedSubtotal,
-                // 'discount_amount' => $discountAmount,
-                // 'tax_amount'      => $taxAmount,
+                'customer_id'              => $customerId,
+                'user_id'                  => $staffUserId,
+                'order_date'               => date('Y-m-d H:i:s'),
+                'subtotal_before_discount' => $calculatedSubtotal,       // New
+                'discount_type'            => ($discountInputValueNumeric > 0) ? $discountType : null, // New
+                'discount_value'           => ($discountInputValueNumeric > 0) ? $discountInputValueNumeric : null, // New - store the input value (e.g. 10 for 10% or 10000 for fixed)
+                'calculated_discount_amount' => $serverCalculatedDiscountAmount, // New
+                'tax_amount'               => $serverCalculatedTaxAmount,    // New
+                'total_amount'             => $finalTotalAmount,
+                'status'                   => 'completed',
+                'notes'                    => $finalNotes,
             ];
-            // Note: The database schema from earlier did not explicitly include subtotal, discount, tax in 'orders' table.
-            // If they are needed, migrations should be updated. For now, they are part of `total_amount`.
-            // The POS view did have discount and tax displays, so it's good to store them if possible.
-            // Assuming 'total_amount' is the final amount after discount and tax.
 
-            $orderId = $this->orderModel->insert($orderData, true); // true for returning insert ID
+            $orderId = $this->orderModel->insert($orderData, true);
 
             if (!$orderId) {
                 // This should ideally not happen if inserts are typically successful and PK is auto-increment
@@ -236,7 +245,8 @@ class PesananController extends BaseController
             } else {
                 $db->transCommit();
                 session()->setFlashdata('message', 'Order placed successfully! Order ID: #' . $orderId);
-                return redirect()->to('/pesanan/view/' . $orderId); // Redirect to order view on success
+                // Redirect to receipt view on success
+                return redirect()->to('/pesanan/receipt/' . $orderId);
             }
 
         } catch (\Exception $e) {
@@ -309,8 +319,62 @@ class PesananController extends BaseController
         // - Potentially restore product stock
         // - DB Transaction
         // - Redirect with flash message
-        session()->setFlashdata('info', 'Cancelling orders is not yet implemented. (Order ID: ' . $id . ')');
-        return redirect()->to('/pesanan');
+
+        if (!hasPermission('orders_cancel')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to cancel orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
+
+        $order = $this->orderModel->find($id);
+
+        if (!$order) {
+            session()->setFlashdata('error', 'Order not found.');
+            return redirect()->to('/pesanan');
+        }
+
+        if (strtolower($order['status']) !== 'pending') {
+            session()->setFlashdata('error', 'Only pending orders can be cancelled. This order is already ' . $order['status'] . '.');
+            return redirect()->to('/pesanan/view/' . $id);
+        }
+
+        $db = $this->orderModel->db; // Use existing DB connection from a model
+        $db->transStart();
+
+        try {
+            // Fetch Order Items
+            $items = $this->orderItemModel->where('order_id', $id)->findAll();
+
+            // Restore Stock
+            if (!empty($items)) {
+                foreach ($items as $item) {
+                    if (!$this->produkModel->incrementStock($item['product_id'], $item['quantity'])) {
+                        // Log error or add more specific error handling if incrementStock fails
+                        log_message('error', "Failed to restore stock for product ID {$item['product_id']} on order cancellation {$id}.");
+                        // This will trigger transRollback due to exception or return false from incrementStock
+                        throw new \Exception("Failed to restore stock for product ID {$item['product_id']}.");
+                    }
+                }
+            }
+
+            // Update Order Status
+            if (!$this->orderModel->update($id, ['status' => 'cancelled'])) {
+                 throw new \Exception("Failed to update order status for order ID {$id}.");
+            }
+
+            if ($db->transStatus() === false) {
+                $db->transRollback();
+                session()->setFlashdata('error', 'Failed to cancel order. Please try again.');
+            } else {
+                $db->transCommit();
+                session()->setFlashdata('message', 'Order #' . $id . ' has been successfully cancelled and stock restored.');
+            }
+        } catch (\Exception $e) {
+            $db->transRollback();
+            log_message('error', "[ERROR] Exception during order cancellation (Order ID: {$id}): " . $e->getMessage());
+            session()->setFlashdata('error', 'An unexpected error occurred while cancelling the order: ' . $e->getMessage());
+        }
+
+        return redirect()->to('/pesanan/view/' . $id);
     }
 
     public function ajaxProductSearch()
@@ -346,5 +410,46 @@ class PesananController extends BaseController
         // return $this->response->setJSON($formatted_products);
 
         return $this->response->setJSON($products);
+    }
+
+    public function receipt($orderId = null)
+    {
+        if (!hasPermission('orders_view_details')) { // Same permission as viewing order details
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view this receipt.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
+
+        $order = $this->orderModel
+            ->select('orders.*, customers.name as customer_name, customers.email as customer_email, customers.phone as customer_phone, users.name as user_name')
+            ->join('customers', 'customers.id = orders.customer_id', 'left')
+            ->join('users', 'users.id = orders.user_id', 'left') // Staff who processed
+            ->find($orderId);
+
+        if (!$order) {
+            session()->setFlashdata('error', 'Order not found.');
+            return redirect()->to('/pesanan');
+        }
+
+        $items = $this->orderItemModel
+            ->select('order_items.*, products.name as product_name, products.sku as product_sku')
+            ->join('products', 'products.id = order_items.product_id', 'left')
+            ->where('order_items.order_id', $orderId)
+            ->findAll();
+
+        // Assuming discount and tax are stored directly in the orders table or calculated based on stored values
+        // For now, the 'orders' table has 'total_amount'. If discount_amount and tax_amount were added to orders table:
+        // $order['discount_amount'] = $order['discount_amount'] ?? 0; // Example if these fields exist
+        // $order['tax_amount'] = $order['tax_amount'] ?? 0; // Example
+        // $order['subtotal_for_receipt'] = $order['total_amount'] - $order['tax_amount'] + $order['discount_amount']; // Recalculate subtotal if needed
+
+        $data = [
+            'order' => $order,
+            'items' => $items,
+            'storeName' => 'KasirKu Store', // Example, can be from config
+            'storeAddress' => '123 Main Street, Anytown', // Example
+            'storeContact' => 'Phone: (123) 456-7890', // Example
+        ];
+
+        return view('pesanan/receipt', $data);
     }
 }
