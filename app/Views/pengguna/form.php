@@ -63,22 +63,34 @@
             </div>
 
             <div class="mb-6 md:col-span-2">
-                <label for="role" class="block text-gray-700 text-sm font-bold mb-2">Role:</label>
-                <select name="role" id="role"
-                        class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 ease-in-out">
-                    <option value="staff" <?= (old('role', $user['role'] ?? '') === 'staff') ? 'selected' : '' ?>>Staff</option>
-                    <option value="admin" <?= (old('role', $user['role'] ?? '') === 'admin') ? 'selected' : '' ?>>Admin</option>
+                <label for="role_id" class="block text-gray-700 text-sm font-bold mb-2">Role: <span class="text-red-500">*</span></label>
+                <select name="role_id" id="role_id"
+                        class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 ease-in-out" required>
+                    <option value="">Select Role</option>
+                    <?php if (!empty($roles) && is_array($roles)): ?>
+                        <?php foreach ($roles as $role_item): ?>
+                            <option value="<?= esc($role_item['id']) ?>"
+                                    <?= (old('role_id', $user['role_id'] ?? '') == $role_item['id']) ? 'selected' : '' ?>>
+                                <?= esc(ucfirst($role_item['name'])) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option value="" disabled>No roles available. Please seed roles.</option>
+                    <?php endif; ?>
                 </select>
+                <?php if (isset($validation) && $validation->hasError('role_id')): ?>
+                    <p class="text-red-500 text-xs italic mt-1"><?= esc($validation->getError('role_id')) ?></p>
+                <?php endif; ?>
             </div>
         </div>
 
         <div class="flex items-center justify-end space-x-4 mt-8 border-t pt-6">
             <a href="<?= site_url('pengguna') ?>"
-               class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out">
-               Cancel
+               class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out flex items-center">
+               <i class="fas fa-times mr-2"></i>Cancel
             </a>
             <button type="submit"
-                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out">
+                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-150 ease-in-out flex items-center">
                 <i class="fas fa-save mr-2"></i><?= $button_label ?>
             </button>
         </div>

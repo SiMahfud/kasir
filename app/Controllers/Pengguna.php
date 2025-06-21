@@ -44,17 +44,28 @@ class Pengguna extends BaseController
         $email = $this->request->getPost('email');
         $password = $this->request->getPost('password');
 
-        $user = $this->penggunaModel->where('email', $email)->first();
+        // Standard user fetch first to verify password against stored hash
+        $userAuthCheck = $this->penggunaModel->where('email', $email)->first();
 
-        if ($user && password_verify($password, $user['password'])) {
-            $sessionData = [
-                'isLoggedIn' => true,
-                'user_id'    => $user['id'],
-                'user_name'  => $user['name'],
-                'user_role'  => $user['role']
-            ];
-            session()->set($sessionData);
-            return redirect()->to('/dashboard')->with('message', 'Login successful!');
+        if ($userAuthCheck && password_verify($password, $userAuthCheck['password'])) {
+            // Password is correct, now fetch user with role and permissions
+            $userWithPermissions = $this->penggunaModel->getUserWithRoleAndPermissions($userAuthCheck['id']);
+
+            if ($userWithPermissions) {
+                $sessionData = [
+                    'isLoggedIn'        => true,
+                    'user_id'           => $userWithPermissions['id'],
+                    'user_name'         => $userWithPermissions['name'],
+                    'user_role'         => $userWithPermissions['role_name'], // Store role name
+                    'user_permissions'  => explode(',', $userWithPermissions['permissions_list'] ?? ''), // Store as an array
+                ];
+                session()->set($sessionData);
+                return redirect()->to('/dashboard')->with('message', 'Login successful!');
+            } else {
+                // Should not happen if userAuthCheck was successful, but good to have a fallback
+                log_message('error', "Failed to fetch role/permissions for successfully authenticated user ID: " . $userAuthCheck['id']);
+                return redirect()->to('/login')->with('error', 'Login successful, but failed to retrieve user details. Please contact support.');
+            }
         } else {
             return redirect()->to('/login')->withInput()->with('error', 'Invalid email or password.');
         }
@@ -69,9 +80,9 @@ class Pengguna extends BaseController
     // --- CRUD METHODS WITH AUTH CHECKS ---
     public function index()
     {
-        if (!session()->get('isLoggedIn') || session()->get('user_role') !== 'admin') {
-            session()->setFlashdata('error', 'Access denied. You do not have permission to manage users.');
-            return redirect()->to(session()->get('isLoggedIn') ? '/dashboard' : '/login');
+        if (!hasPermission('users_view')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view users.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
         }
         $data['users'] = $this->penggunaModel->findAll();
         return view('pengguna/index', $data);
@@ -79,9 +90,9 @@ class Pengguna extends BaseController
 
     public function create()
     {
-        if (!session()->get('isLoggedIn') || session()->get('user_role') !== 'admin') {
-            session()->setFlashdata('error', 'Access denied. You do not have permission to manage users.');
-            return redirect()->to(session()->get('isLoggedIn') ? '/dashboard' : '/login');
+        if (!hasPermission('users_create')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to create users.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
         }
 
         // Handle POST request for storing new user
@@ -91,19 +102,22 @@ class Pengguna extends BaseController
                 'email'            => 'required|valid_email|is_unique[users.email]',
                 'password'         => 'required|min_length[6]',
                 'password_confirm' => 'required_with[password]|matches[password]',
-                'role'             => 'required|in_list[admin,staff]'
+                'role_id'          => 'required|is_not_unique[roles.id]' // Changed from 'role' to 'role_id'
             ];
 
             if (!$this->validate($rules)) {
+                // Need to pass roles to the view if validation fails for dropdown repopulation
+                $roleModel = new \App\Models\RoleModel();
                 return view('pengguna/form', [
-                    'validation' => $this->validator
+                    'validation' => $this->validator,
+                    'roles' => $roleModel->findAll() // Assuming 'roles' variable is used in form for dropdown
                 ]);
             } else {
                 $userData = [
                     'name'     => $this->request->getPost('name'),
                     'email'    => $this->request->getPost('email'),
                     'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
-                    'role'     => $this->request->getPost('role')
+                    'role_id'  => $this->request->getPost('role_id') // Changed from 'role'
                 ];
 
                 if ($this->penggunaModel->save($userData)) {
@@ -116,19 +130,22 @@ class Pengguna extends BaseController
         }
 
         // Handle GET request for displaying the create form
+        // Need to pass roles to the view for dropdown
+        $roleModel = new \App\Models\RoleModel();
         return view('pengguna/form', [
-            'validation' => \Config\Services::validation()
+            'validation' => \Config\Services::validation(),
+            'roles' => $roleModel->findAll() // Assuming 'roles' variable is used in form for dropdown
         ]);
     }
 
     public function edit($id = null)
     {
-        if (!session()->get('isLoggedIn') || session()->get('user_role') !== 'admin') {
-            session()->setFlashdata('error', 'Access denied. You do not have permission to manage users.');
-            return redirect()->to(session()->get('isLoggedIn') ? '/dashboard' : '/login');
+        if (!hasPermission('users_edit')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to edit users.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
         }
 
-        $user = $this->penggunaModel->find($id);
+        $user = $this->penggunaModel->find($id); // This will now fetch user with role_id
         if (!$user) {
             session()->setFlashdata('error', 'User not found.');
             return redirect()->to('/pengguna');
@@ -139,21 +156,23 @@ class Pengguna extends BaseController
             $rules = [
                 'name'             => 'required|min_length[3]|max_length[255]',
                 'email'            => "required|valid_email|is_unique[users.email,id,{$id}]",
-                'password'         => 'permit_empty|min_length[6]', // Optional password change
+                'password'         => 'permit_empty|min_length[6]',
                 'password_confirm' => 'required_with[password]|matches[password]',
-                'role'             => 'required|in_list[admin,staff]'
+                'role_id'          => 'required|is_not_unique[roles.id]' // Changed from 'role' to 'role_id'
             ];
 
             if (!$this->validate($rules)) {
+                $roleModel = new \App\Models\RoleModel();
                 return view('pengguna/form', [
-                    'user'       => $user,
-                    'validation' => $this->validator
+                    'user'       => $user, // Pass existing user data (with role_id)
+                    'validation' => $this->validator,
+                    'roles'      => $roleModel->findAll()
                 ]);
             } else {
                 $updateData = [
-                    'name'  => $this->request->getPost('name'),
-                    'email' => $this->request->getPost('email'),
-                    'role'  => $this->request->getPost('role')
+                    'name'    => $this->request->getPost('name'),
+                    'email'   => $this->request->getPost('email'),
+                    'role_id' => $this->request->getPost('role_id') // Changed from 'role'
                 ];
 
                 // If password is provided, hash and add to updateData
@@ -172,17 +191,19 @@ class Pengguna extends BaseController
         }
 
         // Handle GET request for displaying the edit form
+        $roleModel = new \App\Models\RoleModel();
         return view('pengguna/form', [
-            'user'       => $user,
-            'validation' => \Config\Services::validation()
+            'user'       => $user, // User data now includes role_id
+            'validation' => \Config\Services::validation(),
+            'roles'      => $roleModel->findAll()
         ]);
     }
 
     public function delete($id = null)
     {
-        if (!session()->get('isLoggedIn') || session()->get('user_role') !== 'admin') {
-            session()->setFlashdata('error', 'Access denied. You do not have permission to manage users.');
-            return redirect()->to(session()->get('isLoggedIn') ? '/dashboard' : '/login');
+        if (!hasPermission('users_delete')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to delete users.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
         }
 
         $user = $this->penggunaModel->find($id);

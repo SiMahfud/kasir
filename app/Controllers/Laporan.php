@@ -10,7 +10,7 @@ class Laporan extends BaseController // Class name matches Laporan.php
     protected $orderModel;
     protected $produkModel;
     protected $kategoriModel;
-    protected $helpers = ['form', 'url', 'number', 'session']; // Added session helper
+    protected $helpers = ['form', 'url', 'number', 'session']; // 'auth' helper is autoloaded
 
     public function __construct()
     {
@@ -19,23 +19,14 @@ class Laporan extends BaseController // Class name matches Laporan.php
         $this->kategoriModel = new KategoriModel();
     }
 
-    private function checkAuth()
-    {
-        if (!session()->get('isLoggedIn')) {
-            session()->setFlashdata('error', 'Please login to access reports.');
-            return redirect()->to('/login');
-        }
-        $role = session()->get('user_role');
-        if ($role !== 'admin' && $role !== 'staff') {
-            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
-            return redirect()->to('/dashboard');
-        }
-        return null; // No redirect, auth passed
-    }
+    // Removed private checkAuth() method
 
     public function penjualan()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('reports_view_sales')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view sales reports.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         $filters = [
             'tanggal_awal'  => $this->request->getGet('tanggal_awal'),
@@ -99,7 +90,10 @@ class Laporan extends BaseController // Class name matches Laporan.php
 
     public function stok()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('reports_view_stock')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view stock reports.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         $filters = [
             'category_id' => $this->request->getGet('category_id'),

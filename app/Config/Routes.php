@@ -43,10 +43,14 @@ $routes->resource('kategori', ['controller' => 'KategoriController']);
 // Customers (Pelanggan)
 $routes->resource('pelanggan', ['controller' => 'PelangganController']);
 
+// Suppliers
+$routes->resource('suppliers', ['controller' => 'SupplierController']);
+
 
 // Custom routes for Order Management (Pesanan)
 $routes->get('pesanan', 'PesananController::index');
 $routes->get('pesanan/new', 'PesananController::new');                   // Display POS form
+$routes->get('pesanan/ajax_product_search', 'PesananController::ajaxProductSearch'); // AJAX Product Search for POS
 $routes->post('pesanan/submit_order', 'PesananController::submitOrder'); // Handle POS submission
 $routes->get('pesanan/view/(:num)', 'PesananController::view/$1');
 $routes->get('pesanan/edit/(:num)', 'PesananController::edit/$1');       // Placeholder for editing an order (e.g., if status allows)

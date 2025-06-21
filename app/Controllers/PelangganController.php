@@ -7,37 +7,31 @@ use App\Controllers\BaseController;
 class PelangganController extends BaseController
 {
     protected $customerModel;
-    protected $helpers = ['form', 'url', 'session']; // Added session helper
+    protected $helpers = ['form', 'url', 'session']; // 'auth' helper is autoloaded
 
     public function __construct()
     {
         $this->customerModel = new CustomerModel();
     }
 
-    private function checkAuth()
-    {
-        if (!session()->get('isLoggedIn')) {
-            session()->setFlashdata('error', 'Please login to manage customers.');
-            return redirect()->to('/login');
-        }
-        $role = session()->get('user_role');
-        if ($role !== 'admin' && $role !== 'staff') {
-            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
-            return redirect()->to('/dashboard');
-        }
-        return null; // No redirect, auth passed
-    }
+    // Removed private checkAuth() method
 
     public function index()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('customers_view')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view customers.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $data['customers'] = $this->customerModel->orderBy('name', 'ASC')->findAll();
         return view('pelanggan/index', $data);
     }
 
     public function create()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('customers_create')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to create customers.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name'    => 'required|min_length[3]|max_length[255]',
@@ -76,7 +70,10 @@ class PelangganController extends BaseController
 
     public function edit($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('customers_edit')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to edit customers.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $customer = $this->customerModel->find($id);
         if (!$customer) {
             session()->setFlashdata('error', 'Customer not found.');
@@ -123,7 +120,10 @@ class PelangganController extends BaseController
 
     public function delete($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('customers_delete')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to delete customers.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $customer = $this->customerModel->find($id);
         if (!$customer) {
             session()->setFlashdata('error', 'Customer not found.');

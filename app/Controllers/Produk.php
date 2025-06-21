@@ -1,43 +1,38 @@
 <?php namespace App\Controllers;
 
 use App\Models\ProdukModel;
-use App\Models\KategoriModel; // Added KategoriModel
+use App\Models\KategoriModel;
+use App\Models\SupplierModel; // Added SupplierModel
 use App\Controllers\BaseController;
 
 class Produk extends BaseController
 {
     protected $produkModel;
     protected $kategoriModel;
+    protected $supplierModel; // Added
 
     public function __construct()
     {
         $this->produkModel = new ProdukModel();
         $this->kategoriModel = new KategoriModel();
-        helper(['form', 'url', 'filesystem', 'session']); // Load helpers, added session
+        $this->supplierModel = new SupplierModel(); // Instantiate
+        helper(['form', 'url', 'filesystem', 'session']); // auth_helper is autoloaded
     }
 
-    private function checkAuth()
-    {
-        if (!session()->get('isLoggedIn')) {
-            session()->setFlashdata('error', 'Please login to manage products.');
-            return redirect()->to('/login');
-        }
-        $role = session()->get('user_role');
-        if ($role !== 'admin' && $role !== 'staff') {
-            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
-            return redirect()->to('/dashboard'); // Or a general access denied page
-        }
-        return null; // No redirect, auth passed
-    }
+    // Removed private checkAuth(), will use hasPermission() directly or via a new BaseController method if preferred later
 
     public function index()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('products_view')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view products.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
-        // Fetch products with category names
+        // Fetch products with category and supplier names
         $data['products'] = $this->produkModel
-            ->select('products.*, categories.name as category_name')
+            ->select('products.*, categories.name as category_name, suppliers.name as supplier_name')
             ->join('categories', 'categories.id = products.category_id', 'left')
+            ->join('suppliers', 'suppliers.id = products.supplier_id', 'left') // Join suppliers
             ->findAll();
 
         return view('produk/index', $data);
@@ -45,31 +40,39 @@ class Produk extends BaseController
 
     public function create()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('products_create')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to create products.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
-                'name'        => 'required|min_length[3]|max_length[255]',
-                'category_id' => 'required|is_not_unique[categories.id]',
-                'description' => 'permit_empty|max_length[2000]',
-                'price'       => 'required|decimal|greater_than_equal_to[0]',
-                'stock'       => 'required|integer|greater_than_equal_to[0]',
-                'sku'         => 'permit_empty|is_unique[products.sku]|max_length[100]',
-                'image'       => 'permit_empty|uploaded[image]|max_size[image,2048]|is_image[image]|mime_in[image,image/jpeg,image/jpg,image/png,image/gif]'
+                'name'           => 'required|min_length[3]|max_length[255]',
+                'category_id'    => 'required|is_not_unique[categories.id]',
+                'supplier_id'    => 'permit_empty|is_not_unique[suppliers.id]', // New
+                'description'    => 'permit_empty|max_length[2000]',
+                'price'          => 'required|decimal|greater_than_equal_to[0]',
+                'purchase_price' => 'permit_empty|decimal|greater_than_equal_to[0]', // New
+                'stock'          => 'required|integer|greater_than_equal_to[0]',
+                'sku'            => 'permit_empty|is_unique[products.sku]|max_length[100]',
+                'image'          => 'permit_empty|uploaded[image]|max_size[image,2048]|is_image[image]|mime_in[image,image/jpeg,image/jpg,image/png,image/gif]'
             ];
 
             if (!$this->validate($rules)) {
                 $data['categories'] = $this->kategoriModel->findAll();
+                $data['suppliers'] = $this->supplierModel->orderBy('name', 'ASC')->findAll(); // New
                 $data['validation'] = $this->validator;
                 return view('produk/form', $data);
             } else {
                 $productData = [
-                    'name'        => $this->request->getPost('name'),
-                    'category_id' => $this->request->getPost('category_id'),
-                    'description' => $this->request->getPost('description'),
-                    'price'       => $this->request->getPost('price'),
-                    'stock'       => $this->request->getPost('stock'),
-                    'sku'         => $this->request->getPost('sku'),
+                    'name'           => $this->request->getPost('name'),
+                    'category_id'    => $this->request->getPost('category_id'),
+                    'supplier_id'    => $this->request->getPost('supplier_id') ?: null, // New, handle empty
+                    'description'    => $this->request->getPost('description'),
+                    'price'          => $this->request->getPost('price'),
+                    'purchase_price' => $this->request->getPost('purchase_price') ?: null, // New, handle empty
+                    'stock'          => $this->request->getPost('stock'),
+                    'sku'            => $this->request->getPost('sku'),
                 ];
 
                 $img = $this->request->getFile('image');
@@ -96,13 +99,17 @@ class Produk extends BaseController
 
         // GET request
         $data['categories'] = $this->kategoriModel->findAll();
+        $data['suppliers'] = $this->supplierModel->orderBy('name', 'ASC')->findAll(); // New
         $data['validation'] = \Config\Services::validation();
         return view('produk/form', $data);
     }
 
     public function edit($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('products_edit')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to edit products.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         $product = $this->produkModel->find($id);
         if (!$product) {
@@ -112,30 +119,33 @@ class Produk extends BaseController
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
-                'name'        => 'required|min_length[3]|max_length[255]',
-                'category_id' => 'required|is_not_unique[categories.id]',
-                'description' => 'permit_empty|max_length[2000]',
-                'price'       => 'required|decimal|greater_than_equal_to[0]',
-                'stock'       => 'required|integer|greater_than_equal_to[0]',
-                'sku'         => "permit_empty|is_unique[products.sku,id,{$id}]|max_length[100]",
-                'image'       => 'permit_empty|uploaded[image]|max_size[image,2048]|is_image[image]|mime_in[image,image/jpeg,image/jpg,image/png,image/gif]'
+                'name'           => 'required|min_length[3]|max_length[255]',
+                'category_id'    => 'required|is_not_unique[categories.id]',
+                'supplier_id'    => 'permit_empty|is_not_unique[suppliers.id]', // New
+                'description'    => 'permit_empty|max_length[2000]',
+                'price'          => 'required|decimal|greater_than_equal_to[0]',
+                'purchase_price' => 'permit_empty|decimal|greater_than_equal_to[0]', // New
+                'stock'          => 'required|integer|greater_than_equal_to[0]',
+                'sku'            => "permit_empty|is_unique[products.sku,id,{$id}]|max_length[100]",
+                'image'          => 'permit_empty|uploaded[image]|max_size[image,2048]|is_image[image]|mime_in[image,image/jpeg,image/jpg,image/png,image/gif]'
             ];
-             // Note: 'permit_empty' for image means if 'image' field is not sent or empty, it passes.
-             // If it IS sent, then 'uploaded' and other rules apply.
 
             if (!$this->validate($rules)) {
-                $data['product'] = $product; // existing product data
+                $data['product'] = $product;
                 $data['categories'] = $this->kategoriModel->findAll();
+                $data['suppliers'] = $this->supplierModel->orderBy('name', 'ASC')->findAll(); // New
                 $data['validation'] = $this->validator;
                 return view('produk/form', $data);
             } else {
                 $updateData = [
-                    'name'        => $this->request->getPost('name'),
-                    'category_id' => $this->request->getPost('category_id'),
-                    'description' => $this->request->getPost('description'),
-                    'price'       => $this->request->getPost('price'),
-                    'stock'       => $this->request->getPost('stock'),
-                    'sku'         => $this->request->getPost('sku'),
+                    'name'           => $this->request->getPost('name'),
+                    'category_id'    => $this->request->getPost('category_id'),
+                    'supplier_id'    => $this->request->getPost('supplier_id') ?: null, // New
+                    'description'    => $this->request->getPost('description'),
+                    'price'          => $this->request->getPost('price'),
+                    'purchase_price' => $this->request->getPost('purchase_price') ?: null, // New
+                    'stock'          => $this->request->getPost('stock'),
+                    'sku'            => $this->request->getPost('sku'),
                 ];
 
                 $newImg = $this->request->getFile('image');
@@ -165,20 +175,21 @@ class Produk extends BaseController
         // GET request
         $data['product'] = $product;
         $data['categories'] = $this->kategoriModel->findAll();
+        $data['suppliers'] = $this->supplierModel->orderBy('name', 'ASC')->findAll(); // New
         $data['validation'] = \Config\Services::validation();
         return view('produk/form', $data);
     }
 
     public function delete($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('products_delete')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to delete products.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // For delete, one might argue only admin should do it.
-        // For now, sticking to admin/staff as per initial simplified plan.
-        // if (session()->get('user_role') !== 'admin') {
-        //     session()->setFlashdata('error', 'Access Denied. Only admins can delete products.');
-        //     return redirect()->to('/produk');
-        // }
+        // The 'products_delete' permission can be assigned only to admin role by RoleSeeder
+        // if that's the desired behavior. Current RoleSeeder gives it to admin.
 
         $product = $this->produkModel->find($id);
         if ($product) {

@@ -10,42 +10,46 @@ class UserSeeder extends Seeder
 {
     public function run()
     {
-        $model = new PenggunaModel();
-        // Timestamps will be handled by the model if $useTimestamps is true.
-        // The model's $allowedFields should include 'created_at', 'updated_at' if setting them manually,
-        // but it's better to let the model handle them.
-        // If model's $useTimestamps is false, or if you want explicit control for seeding:
-        $now = date('Y-m-d H:i:s');
+        $penggunaModel = new PenggunaModel();
+        $roleModel = new \App\Models\RoleModel(); // Added RoleModel
+
+        // Fetch Role IDs
+        $adminRole = $roleModel->where('name', 'admin')->first();
+        $staffRole = $roleModel->where('name', 'staff')->first();
+
+        if (!$adminRole || !$staffRole) {
+            echo "Error: Admin or Staff role not found. Make sure RoleSeeder has run and roles exist.\n";
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s'); // For manual timestamp setting if not using model's auto-timestamp
 
         $usersData = [
             [
                 'name'     => 'Admin User',
                 'email'    => 'admin@example.com',
                 'password' => password_hash('password123', PASSWORD_DEFAULT),
-                'role'     => 'admin',
-                // 'created_at' => $now, // Let model handle if useTimestamps = true
-                // 'updated_at' => $now, // Let model handle if useTimestamps = true
+                'role_id'  => $adminRole['id'], // Use role_id
+                'created_at' => $now,          // Manually set for direct DB insert
+                'updated_at' => $now,
             ],
             [
                 'name'     => 'Staff User',
                 'email'    => 'staff@example.com',
                 'password' => password_hash('password123', PASSWORD_DEFAULT),
-                'role'     => 'staff',
-                // 'created_at' => $now,
-                // 'updated_at' => $now,
+                'role_id'  => $staffRole['id'], // Use role_id
+                'created_at' => $now,
+                'updated_at' => $now,
             ],
         ];
 
-        // Using direct DB commands to bypass model validations/callbacks for seeding if preferred
-        // This also means manually handling timestamps if model doesn't do it or if bypassing model.
-        // The PenggunaModel is set to use timestamps, so it should handle them.
+        // Using direct DB commands to ensure precise seeding control, including timestamps.
+        // PenggunaModel also has $useTimestamps = true, so using $penggunaModel->save($data)
+        // would also work and handle timestamps automatically if 'created_at'/'updated_at' were omitted here.
         foreach ($usersData as $data) {
-            // If model's $useTimestamps = true, it will fill created_at and updated_at
             $this->db->table('users')->insert($data);
-            // Alternatively, using the model:
-            // $model->save($data); // This would trigger model's timestamp handling
         }
 
-        echo "Users seeded successfully.\n";
+        echo "Users seeded successfully with role_id.\n";
     }
 }

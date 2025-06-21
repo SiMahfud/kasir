@@ -8,8 +8,18 @@ class ProdukModel extends Model
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
-    protected $useSoftDeletes   = false;
-    protected $allowedFields    = ['category_id', 'name', 'description', 'price', 'stock', 'sku', 'image_path'];
+    protected $useSoftDeletes   = false; // Assuming products are hard deleted or not deleted via model often
+    protected $allowedFields    = [
+        'category_id',
+        'name',
+        'description',
+        'price',
+        'stock',
+        'sku',
+        'image_path',
+        'supplier_id', // Added
+        'purchase_price' // Added
+    ];
 
     // Dates
     protected $useTimestamps = true;

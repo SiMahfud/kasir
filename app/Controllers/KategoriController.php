@@ -7,37 +7,31 @@ use App\Controllers\BaseController;
 class KategoriController extends BaseController
 {
     protected $kategoriModel;
-    protected $helpers = ['form', 'url', 'session']; // Added session helper
+    protected $helpers = ['form', 'url', 'session']; // 'auth' helper is autoloaded
 
     public function __construct()
     {
         $this->kategoriModel = new KategoriModel();
     }
 
-    private function checkAuth()
-    {
-        if (!session()->get('isLoggedIn')) {
-            session()->setFlashdata('error', 'Please login to manage categories.');
-            return redirect()->to('/login');
-        }
-        $role = session()->get('user_role');
-        if ($role !== 'admin' && $role !== 'staff') {
-            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
-            return redirect()->to('/dashboard');
-        }
-        return null; // No redirect, auth passed
-    }
+    // Removed private checkAuth() method
 
     public function index()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('categories_view')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view categories.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $data['categories'] = $this->kategoriModel->orderBy('name', 'ASC')->findAll();
         return view('kategori/index', $data);
     }
 
     public function create()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('categories_create')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to create categories.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name'        => 'required|min_length[2]|max_length[100]|is_unique[categories.name]',
@@ -72,7 +66,10 @@ class KategoriController extends BaseController
 
     public function edit($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('categories_edit')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to edit categories.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $category = $this->kategoriModel->find($id);
         if (!$category) {
             session()->setFlashdata('error', 'Category not found.');
@@ -116,7 +113,10 @@ class KategoriController extends BaseController
 
     public function delete($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('categories_delete')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to delete categories.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
         $category = $this->kategoriModel->find($id);
         if (!$category) {
             session()->setFlashdata('error', 'Category not found.');

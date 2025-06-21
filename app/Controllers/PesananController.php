@@ -25,23 +25,14 @@ class PesananController extends BaseController
         $this->penggunaModel = new PenggunaModel();
     }
 
-    private function checkAuth($roles = ['admin', 'staff'])
-    {
-        if (!session()->get('isLoggedIn')) {
-            session()->setFlashdata('error', 'Please login to access this page.');
-            return redirect()->to('/login');
-        }
-        $userRole = session()->get('user_role');
-        if (!in_array($userRole, $roles)) {
-            session()->setFlashdata('error', 'Access Denied. You do not have permission for this action.');
-            return redirect()->to('/dashboard'); // Or a general access denied page
-        }
-        return null; // No redirect, auth passed
-    }
+    // Removed private checkAuth() method, will use hasPermission() helper
 
     public function index()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_view_all')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // Fetch orders with customer and user (staff) names
         // Note: Model alias for 'orders.id' might be needed if it clashes with other 'id' fields after join.
@@ -71,7 +62,10 @@ class PesananController extends BaseController
 
     public function new()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_create_pos')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to create new orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // Fetch products that are in stock or handle stock display/logic in view JS
         $data['products'] = $this->produkModel
@@ -87,7 +81,10 @@ class PesananController extends BaseController
 
     public function submitOrder()
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_create_pos')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to submit orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         if ($this->request->getMethod() !== 'post') {
             return redirect()->to('/pesanan/new')->with('error', 'Invalid request method.');
@@ -253,7 +250,10 @@ class PesananController extends BaseController
 
     public function view($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_view_details')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to view order details.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // Basic data fetching example (adjust as needed)
         $order = $this->orderModel
@@ -285,7 +285,10 @@ class PesananController extends BaseController
 
     public function edit($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_edit')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to edit orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // To be implemented: Allow editing of PENDING orders (e.g., items, customer, notes)
         // This would likely involve a modified POS-like interface.
@@ -295,7 +298,10 @@ class PesananController extends BaseController
 
     public function cancelOrder($id = null)
     {
-        if ($redirect = $this->checkAuth()) return $redirect;
+        if (!hasPermission('orders_cancel')) {
+            session()->setFlashdata('error', 'Access Denied. You do not have permission to cancel orders.');
+            return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
+        }
 
         // To be implemented: Handle order cancellation
         // - Check if order can be cancelled (e.g., status is 'pending')
@@ -305,5 +311,40 @@ class PesananController extends BaseController
         // - Redirect with flash message
         session()->setFlashdata('info', 'Cancelling orders is not yet implemented. (Order ID: ' . $id . ')');
         return redirect()->to('/pesanan');
+    }
+
+    public function ajaxProductSearch()
+    {
+        // This AJAX endpoint supports the POS creation page, so it should have the same permission.
+        if (!hasPermission('orders_create_pos')) {
+            return $this->response->setStatusCode(403)->setJSON(['error' => 'Access Denied.']);
+        }
+
+        $keyword = $this->request->getGet('term'); // 'term' is common for jQuery UI Autocomplete, select2
+
+        $query = $this->produkModel->select('id, name, sku, price, stock, image_path');
+
+        if (!empty($keyword)) {
+            $query->groupStart()
+                  ->like('name', $keyword)
+                  ->orLike('sku', $keyword)
+                  ->groupEnd();
+        }
+
+        $query->where('stock >', 0); // Only show products in stock for POS selection
+        $query->orderBy('name', 'ASC');
+        $query->limit(15); // Limit results for performance in autocomplete scenarios
+
+        $products = $query->findAll();
+
+        // Format for select2 or other autocomplete libraries if needed, or return as is.
+        // Example for select2:
+        // $formatted_products = [];
+        // foreach($products as $product) {
+        //     $formatted_products[] = ['id' => $product['id'], 'text' => $product['name'] . ($product['sku'] ? ' ('.$product['sku'].')' : '') . ' - Rp ' . number_format($product['price'],0,',','.') . ' | Stock: ' . $product['stock']];
+        // }
+        // return $this->response->setJSON($formatted_products);
+
+        return $this->response->setJSON($products);
     }
 }

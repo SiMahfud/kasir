@@ -39,6 +39,7 @@ Product Management
                     <th class="py-3 px-5 text-left">SKU</th>
                     <th class="py-3 px-5 text-left">Name</th>
                     <th class="py-3 px-5 text-left">Category</th>
+                    <th class="py-3 px-5 text-left">Supplier</th> <!-- New Column -->
                     <th class="py-3 px-5 text-right">Price</th>
                     <th class="py-3 px-5 text-center">Stock</th>
                     <th class="py-3 px-5 text-center">Image</th>
@@ -53,6 +54,7 @@ Product Management
                             <td class="py-3 px-5 text-left"><?= esc($product['sku'] ?? 'N/A') ?></td>
                             <td class="py-3 px-5 text-left font-medium"><?= esc($product['name']) ?></td>
                             <td class="py-3 px-5 text-left"><?= esc($product['category_name'] ?? 'N/A') ?></td>
+                            <td class="py-3 px-5 text-left"><?= esc($product['supplier_name'] ?? 'N/A') ?></td> <!-- New Column Data -->
                             <td class="py-3 px-5 text-right">Rp <?= number_format($product['price'] ?? 0, 0, ',', '.') ?></td>
                             <td class="py-3 px-5 text-center">
                                 <?php
@@ -92,7 +94,7 @@ Product Management
                     <?php endforeach; ?>
                 <?php else: ?>
                     <tr>
-                        <td colspan="8" class="py-6 px-5 text-center text-gray-500">No products found.</td>
+                        <td colspan="9" class="py-6 px-5 text-center text-gray-500">No products found.</td> <!-- Adjusted colspan -->
                     </tr>
                 <?php endif; ?>
             </tbody>

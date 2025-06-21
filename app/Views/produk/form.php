@@ -60,6 +60,23 @@
                     <?php endif; ?>
                 </select>
             </div>
+
+            <div class="mb-5"> <!-- Added Supplier Dropdown -->
+                <label for="supplier_id" class="block text-gray-700 text-sm font-bold mb-2">Supplier (Optional):</label>
+                <select name="supplier_id" id="supplier_id"
+                        class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-150 ease-in-out">
+                    <option value="">Select Supplier</option>
+                    <?php if (!empty($suppliers) && is_array($suppliers)): ?>
+                        <?php foreach ($suppliers as $supplier): ?>
+                            <option value="<?= esc($supplier['id']) ?>" <?= (old('supplier_id', $product['supplier_id'] ?? '') == $supplier['id']) ? 'selected' : '' ?>>
+                                <?= esc($supplier['name']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option value="" disabled>No suppliers available</option>
+                    <?php endif; ?>
+                </select>
+            </div>
         </div>
 
         <div class="mb-5 mt-6">
@@ -69,8 +86,14 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 mt-6">
+            <div class="mb-5 md:mb-0"> <!-- Changed from md:grid-cols-3 to md:grid-cols-4 for better layout with purchase price -->
+                <label for="purchase_price" class="block text-gray-700 text-sm font-bold mb-2">Purchase Price (Rp) (Optional):</label>
+                <input type="number" name="purchase_price" id="purchase_price" value="<?= old('purchase_price', $product['purchase_price'] ?? '') ?>"
+                       class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-150 ease-in-out" step="0.01" min="0">
+            </div>
+
             <div class="mb-5 md:mb-0">
-                <label for="price" class="block text-gray-700 text-sm font-bold mb-2">Price (Rp):</label>
+                <label for="price" class="block text-gray-700 text-sm font-bold mb-2">Selling Price (Rp): <span class="text-red-500">*</span></label>
                 <input type="number" name="price" id="price" value="<?= old('price', $product['price'] ?? '') ?>"
                        class="shadow-sm appearance-none border rounded w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition duration-150 ease-in-out" required step="0.01" min="0">
             </div>
