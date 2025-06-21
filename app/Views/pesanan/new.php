@@ -119,12 +119,14 @@ New Order - POS
 
                     <div class="border-t pt-4 space-y-2 text-sm text-gray-700">
                         <div class="flex justify-between"><span>Subtotal:</span> <span id="cart-subtotal" class="font-medium">Rp 0</span></div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between items-center">
                             <span>Discount:</span>
-                            <input type="number" id="cart-discount-input" value="0" class="w-20 text-right border rounded text-xs py-0.5 px-1" min="0">
-                            <span id="cart-discount-display" class="font-medium hidden">Rp 0</span> <!-- Used if input is not direct -->
+                            <div class="flex items-center">
+                                <input type="number" id="cart-discount-input" value="0" class="w-20 text-right border rounded-md text-sm py-1 px-2 shadow-sm" min="0">
+                                <span id="cart-discount-value-display" class="font-medium ml-2 text-gray-700">Rp 0</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between"><span>Tax (e.g., 10%):</span> <span id="cart-tax" class="font-medium">Rp 0</span></div>
+                        <div class="flex justify-between"><span>Tax (10%):</span> <span id="cart-tax" class="font-medium">Rp 0</span></div>
                         <hr class="my-2">
                         <div class="flex justify-between font-bold text-lg text-gray-800"><span>Total:</span> <span id="cart-total">Rp 0</span></div>
                     </div>
@@ -153,9 +155,13 @@ New Order - POS
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-    <!-- <script src="<?= base_url('js/pos.js') ?>"></script> -->
+    <script src="<?= base_url('js/pos.js') ?>"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        // document.addEventListener('DOMContentLoaded', function() {
+        // This has been moved to pos.js
+        // });
+    </script>
+<?= $this->endSection() ?>
             // Placeholder for POS JavaScript logic
             // This will handle:
             // - Fetching/displaying products (e.g., via AJAX on search/filter)

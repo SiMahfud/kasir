@@ -1,72 +1,151 @@
-<<<<<<< HEAD
-# CodeIgniter 4 Application Starter
+# KasirKu - Point of Sale & Inventory Management
 
-## What is CodeIgniter?
+KasirKu is a web-based Point of Sale (POS) and inventory management application built with PHP and the CodeIgniter 4 framework. It features a modern, responsive user interface styled with Tailwind CSS.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+## Features
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+*   **User Management:**
+    *   Admin and Staff roles.
+    *   CRUD operations for users (Admin only).
+    *   Secure password hashing.
+    *   Role-based access control for application features.
+*   **Product Management:**
+    *   CRUD operations for products.
+    *   Categorization of products.
+    *   Image uploads for products.
+    *   SKU and stock tracking.
+*   **Category Management:**
+    *   CRUD operations for product categories.
+    *   Prevents deletion of categories with associated products.
+*   **Customer Management:**
+    *   CRUD operations for customer records.
+    *   Prevents deletion of customers with associated orders.
+*   **Point of Sale (POS) Interface:**
+    *   Interactive interface for creating new orders.
+    *   Product selection with cart management (add, update quantity, remove).
+    *   Customer selection (optional).
+    *   Real-time calculation of subtotal, discount, tax (10%), and grand total.
+    *   Order submission with server-side validation and stock updates (within DB transaction).
+*   **Order Management:**
+    *   List view of all past orders with key details.
+    *   Detailed view of individual orders, including items and customer information.
+    *   (Placeholders for order editing/cancellation).
+*   **Reporting:**
+    *   Sales Report: View sales data with date filters and summary statistics (total orders, revenue, average order value).
+    *   Stock Report: View product stock levels with filters for category and stock status (low stock, out of stock), with visual cues for stock levels.
+*   **Data Seeding:**
+    *   Seeders for initial setup of admin/staff users, categories, products, and customers.
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+## Technology Stack
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+*   **Backend:** PHP 8.x, CodeIgniter 4.x
+*   **Frontend:** Tailwind CSS, Vanilla JavaScript (for POS interactivity)
+*   **Database:** MySQL (or other database compatible with CodeIgniter)
+*   **Package Management:** Composer (PHP), npm (for Tailwind CSS)
 
-## Installation & updates
+## Prerequisites
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+*   PHP 8.0 or higher (with `intl`, `mbstring`, `json`, `mysqlnd`, `libcurl` extensions).
+*   Composer 2.x.
+*   Node.js and npm (for Tailwind CSS development).
+*   A web server (e.g., Apache, Nginx) or use `php spark serve`.
+*   A database server (e.g., MySQL, MariaDB).
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+## Installation and Setup
 
-## Setup
+1.  **Clone the Repository:**
+    ```bash
+    git clone <repository_url>
+    cd <repository_directory>
+    ```
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+2.  **Install PHP Dependencies:**
+    ```bash
+    composer install
+    ```
 
-## Important Change with index.php
+3.  **Install Node.js Dependencies (for Tailwind CSS):**
+    ```bash
+    npm install
+    ```
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+4.  **Environment Configuration:**
+    *   Copy the `env` file to `.env`:
+        ```bash
+        cp env .env
+        ```
+    *   Open the `.env` file and configure the following:
+        *   `app.baseURL`: Set to your application's base URL (e.g., `http://localhost:8080/`).
+        *   `database.default.hostname`: Database host (e.g., `localhost`).
+        *   `database.default.database`: Database name.
+        *   `database.default.username`: Database username.
+        *   `database.default.password`: Database password.
+        *   `database.default.DBDriver`: Usually `MySQLi`.
+    *   Ensure the database specified in `.env` exists, or create it.
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+5.  **Run Database Migrations:**
+    *   This will create all the necessary tables in your database.
+    ```bash
+    php spark migrate
+    ```
 
-**Please** read the user guide for a better explanation of how CI4 works!
+6.  **Run Database Seeders (Optional but Recommended for initial data):**
+    *   This will populate the database with sample data, including an admin user. The default password for seeded users is `password123`.
+    ```bash
+    php spark db:seed DatabaseSeeder
+    ```
+    (Note: `DatabaseSeeder` is specified here to run all configured seeders.)
 
-## Repository Management
+7.  **Compile Tailwind CSS:**
+    *   This generates the `public/css/style.css` file used by the application.
+    ```bash
+    npm run build-css
+    ```
+    *   For development, you can use `npm run build-css -- --watch` to automatically recompile on changes to view files or `tailwind.config.js`. (Note: The script name in `package.json` might be just `build-css` without the extra `--watch` by default as defined in previous steps, the `-- --watch` is an additional flag for the user to add if needed).
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+## Running the Application
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+*   **Using CodeIgniter's Spark (Development Server):**
+    ```bash
+    php spark serve
+    ```
+    The application will typically be available at `http://localhost:8080/`.
 
-## Server Requirements
+*   **Using a traditional Web Server (Apache, Nginx):**
+    Configure your web server's document root to point to the `public/` directory of the project.
 
-PHP version 7.4 or higher is required, with the following extensions installed:
+## Usage
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+### Default User Accounts (from Seeder)
 
-> [!WARNING]
-> The end of life date for PHP 7.4 was November 28, 2022.
-> The end of life date for PHP 8.0 was November 26, 2023.
-> If you are still using PHP 7.4 or 8.0, you should upgrade immediately.
-> The end of life date for PHP 8.1 will be November 25, 2024.
+*   **Admin:**
+    *   Email: `admin@example.com`
+    *   Password: `password123`
+*   **Staff:**
+    *   Email: `staff@example.com`
+    *   Password: `password123`
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+### Basic Workflow
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
-=======
-# kasir
->>>>>>> 4eb9a06b036684337c5ecc21672f58dfd0d906c2
+1.  **Login:** Access the `/login` page (or the application root `/` which should redirect to `/login` if not authenticated) and use one of the default accounts.
+2.  **Dashboard:** After login, you'll be redirected to the dashboard.
+3.  **Navigation:** Use the main navigation menu to access different modules:
+    *   **Pengguna (Users):** Manage users (Admin only).
+    *   **Produk (Products):** Manage products.
+    *   **Kategori (Categories):** Manage product categories.
+    *   **Pelanggan (Customers):** Manage customer records.
+    *   **Pesanan (Orders/POS):**
+        *   Click "Create New Order (POS)" to access the Point of Sale interface.
+        *   View past orders in the order list.
+    *   **Laporan (Reports):** View Sales and Stock reports.
+4.  **POS Usage:**
+    *   Select products from the list to add them to the cart.
+    *   Adjust quantities or remove items from the cart.
+    *   Optionally select a customer.
+    *   Enter any discount (flat amount) or notes.
+    *   The system calculates subtotal, tax (10%), and total automatically.
+    *   Click "Finalize & Submit Order" to save the order.
+
+---
+
+This README provides a comprehensive guide to setting up and using the KasirKu application. Remember to replace `<repository_url>` and `<repository_directory>` with actual values.
