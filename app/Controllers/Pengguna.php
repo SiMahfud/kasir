@@ -28,7 +28,7 @@ class Pengguna extends BaseController
 
     public function authenticate()
     {
-        if ($this->request->getMethod() !== 'post') {
+        if ($this->request->getMethod() !== 'POST') {
             return redirect()->to('/login')->with('error', 'Invalid request method.');
         }
 
@@ -67,7 +67,7 @@ class Pengguna extends BaseController
                 return redirect()->to('/login')->with('error', 'Login successful, but failed to retrieve user details. Please contact support.');
             }
         } else {
-            return redirect()->to('/login')->withInput()->with('error', 'Invalid email or password.');
+            return redirect()->to('/login')->withInput()->with('error', 'Invalid email or password. Please try again. email: ' . $email . ' password: ' . $password);
         }
     }
 

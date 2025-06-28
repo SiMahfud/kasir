@@ -46,16 +46,16 @@ User Management
                             <td class="py-4 px-5 text-left"><?= esc($user['email']) ?></td>
                             <td class="py-4 px-5 text-left">
                                 <span class="capitalize px-3 py-1 text-xs font-bold rounded-full shadow-sm
-                                    <?= $user['role'] === 'admin' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800' ?>">
-                                    <?= esc($user['role']) ?>
+                                    <?= $user['role_id'] === 1 ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800' ?>">
+                                    <?= esc($user['role_id']) ?>
                                 </span>
                             </td>
                             <td class="py-4 px-5 text-center">
-                                <a href="<?= site_url('pengguna/edit/' . $user['id']) ?>"
+                                <a href="<?= site_url('pengguna/' . $user['id'].'/edit') ?>"
                                    class="text-blue-600 hover:text-blue-800 font-semibold mr-4 transition duration-150 ease-in-out">
                                    <i class="fas fa-edit"></i> Edit
                                 </a>
-                                <a href="<?= site_url('pengguna/delete/' . $user['id']) ?>"
+                                <a href="<?= site_url('pengguna/' . $user['id'].'/delete') ?>"
                                    class="text-red-600 hover:text-red-800 font-semibold transition duration-150 ease-in-out"
                                    onclick="return confirm('Are you sure you want to delete this user? This action cannot be undone.');">
                                    <i class="fas fa-trash-alt"></i> Delete

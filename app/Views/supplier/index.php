@@ -54,11 +54,11 @@ Supplier Management
                             <td class="py-4 px-5 text-left"><?= esc($supplier['email'] ?? 'N/A') ?></td>
                             <td class="py-4 px-5 text-left"><?= esc($supplier['phone'] ?? 'N/A') ?></td>
                             <td class="py-4 px-5 text-center whitespace-nowrap">
-                                <a href="<?= site_url('suppliers/edit/' . $supplier['id']) ?>"
+                                <a href="<?= site_url('suppliers/' . $supplier['id'].'/edit') ?>"
                                    class="text-blue-600 hover:text-blue-800 font-semibold mr-4 transition duration-150 ease-in-out" title="Edit">
                                    <i class="fas fa-edit fa-lg"></i>
                                 </a>
-                                <a href="<?= site_url('suppliers/delete/' . $supplier['id']) ?>"
+                                <a href="<?= site_url('suppliers/' . $supplier['id'].'/delete') ?>"
                                    class="text-red-600 hover:text-red-800 font-semibold transition duration-150 ease-in-out"
                                    title="Delete"
                                    onclick="return confirm('Are you sure you want to delete this supplier?');">

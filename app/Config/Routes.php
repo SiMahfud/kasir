@@ -10,8 +10,8 @@ use CodeIgniter\Router\RouteCollection;
 $routes->get('/', 'Home::index');
 
 // Authentication Routes
-$routes->get('/login', 'PenggunaController::login', ['as' => 'login']); // Named route for login
-$routes->post('/login_authenticate', 'PenggunaController::authenticate'); // Changed from /authenticate to avoid conflict if a generic Auth controller is made
+$routes->get('/login', 'Pengguna::login', ['as' => 'login']); // Named route for login
+$routes->post('/login/authenticate', 'Pengguna::authenticate'); // Changed from /authenticate to avoid conflict if a generic Auth controller is made
 $routes->get('/logout', 'PenggunaController::logout');
 
 // Dashboard Route
@@ -24,7 +24,7 @@ $routes->get('/dashboard', 'Dashboard::index');
 
 // Users (Pengguna) - Full resource, managed by PenggunaController
 // Access to these routes is further restricted within PenggunaController to 'admin' role.
-$routes->resource('pengguna', ['controller' => 'PenggunaController']);
+$routes->resource('pengguna', ['controller' => 'Pengguna']);
 // This will generate:
 // GET      /pengguna           => PenggunaController::index
 // GET      /pengguna/new       => PenggunaController::new (Our create() method handles GET for form) - Manual route might be better
@@ -35,7 +35,7 @@ $routes->resource('pengguna', ['controller' => 'PenggunaController']);
 // DELETE   /pengguna/(:segment)    => PenggunaController::delete($1)
 
 // Products (Produk)
-$routes->resource('produk', ['controller' => 'ProdukController']);
+$routes->resource('produk', ['controller' => 'Produk']);
 
 // Categories (Kategori)
 $routes->resource('kategori', ['controller' => 'KategoriController']);

@@ -67,12 +67,10 @@ class PesananController extends BaseController
             return redirect()->to(isLoggedIn() ? '/dashboard' : '/login');
         }
 
-        // Fetch products that are in stock or handle stock display/logic in view JS
-        $data['products'] = $this->produkModel
-                            // ->where('stock >', 0) // Example: only show in-stock items
-                            ->orderBy('name', 'ASC')
-                            ->findAll();
-
+        // We will remove pre-loading all products.
+        // The view should use the AJAX endpoint to search for products dynamically.
+        $data['products'] = []; // Pass an empty array initially.
+ 
         $data['customers'] = $this->customerModel->orderBy('name', 'ASC')->findAll();
         $data['validation'] = \Config\Services::validation(); // For potential redirects with errors
 
